@@ -45,7 +45,7 @@ OpenGLSPropRenderer::~OpenGLSPropRenderer() {
 
 	delete _shader;
 }
-
+#ifdef USE_OPENGL_SHADERS
 void OpenGLSPropRenderer::render(const Math::Vector3d position, float direction) {
 	if (_faceVBO == -1) {
 		// Update the OpenGL Buffer Objects if required
@@ -94,6 +94,7 @@ void OpenGLSPropRenderer::render(const Math::Vector3d position, float direction)
 		glUseProgram(0);
 	}
 }
+#endif
 
 void OpenGLSPropRenderer::clearVertices() {
 	Graphics::Shader::freeBuffer(_faceVBO);

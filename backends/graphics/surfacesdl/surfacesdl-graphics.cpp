@@ -75,9 +75,13 @@ SurfaceSdlGraphicsManager::SurfaceSdlGraphicsManager(SdlEventSource *sdlEventSou
 	, _boxShader(nullptr), _boxVerticesVBO(0)
 #endif
 	{
+#if SDL_VERSION_ATLEAST(2, 0, 0)
+	//do nothing
+#else
 		const SDL_VideoInfo *vi = SDL_GetVideoInfo();
 		_desktopW = vi->current_w;
 		_desktopH = vi->current_h;
+#endif
 		_sideSurfaces[0] = _sideSurfaces[1] = nullptr;
 #ifdef USE_OPENGL
 		_sideTextures[0] = _sideTextures[1] = nullptr;
@@ -231,9 +235,13 @@ Graphics::PixelBuffer SurfaceSdlGraphicsManager::setupScreen(uint screenW, uint 
 			// If available, draw to a framebuffer and scale it to the desktop resolution
 #ifndef AMIGAOS
 			// Spawn a 32x32 window off-screen
+#if SDL_VERSION_ATLEAST(2, 0, 0)
+			SDL_SetVideoMode(32, 32, 0, SDL_WINDOW_OPENGL);
+#else
 			SDL_putenv(const_cast<char *>("SDL_VIDEO_WINDOW_POS=9000,9000"));
 			SDL_SetVideoMode(32, 32, 0, SDL_OPENGL);
 			SDL_putenv(const_cast<char *>("SDL_VIDEO_WINDOW_POS=centered"));
+#endif
 			Graphics::initExtensions();
 			framebufferSupported = Graphics::isExtensionSupported("GL_EXT_framebuffer_object");
 			if (_fullscreen && framebufferSupported) {
@@ -267,7 +275,11 @@ Graphics::PixelBuffer SurfaceSdlGraphicsManager::setupScreen(uint screenW, uint 
 		SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
 		setAntialiasing(true);
 
+#if SDL_VERSION_ATLEAST(2, 0, 0)
+		sdlflags = SDL_WINDOW_OPENGL;
+#else
 		sdlflags = SDL_OPENGL;
+#endif
 		bpp = 24;
 	} else
 #endif
@@ -289,6 +301,7 @@ Graphics::PixelBuffer SurfaceSdlGraphicsManager::setupScreen(uint screenW, uint 
 		sdlflags |= SDL_FULLSCREEN;
 
 	_screen = SDL_SetVideoMode(screenW, screenH, bpp, sdlflags);
+
 #ifdef USE_OPENGL
 	// If 32-bit with antialiasing failed, try 32-bit without antialiasing
 	if (!_screen && _opengl && _antialiasing) {
@@ -305,14 +318,14 @@ Graphics::PixelBuffer SurfaceSdlGraphicsManager::setupScreen(uint screenW, uint 
 		SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 5);
 		SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 1);
 		setAntialiasing(true);
-		_screen = SDL_SetVideoMode(screenW, screenH, 0, sdlflags);
+		_screen = SDL_SetVideoMode(screenW, screenH, bpp, sdlflags);
 	}
 
 	// If 16-bit with antialiasing failed, try 16-bit without antialiasing
 	if (!_screen && _opengl && _antialiasing) {
 		warning("Couldn't create 16-bit visual with AA, trying 16-bit without AA");
 		setAntialiasing(false);
-		_screen = SDL_SetVideoMode(screenW, screenH, 0, sdlflags);
+		_screen = SDL_SetVideoMode(screenW, screenH, bpp, sdlflags);
 	}
 
 	// If 16-bit with alpha failed, try 16-bit without alpha
@@ -323,15 +336,16 @@ Graphics::PixelBuffer SurfaceSdlGraphicsManager::setupScreen(uint screenW, uint 
 		SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 5);
 		SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 0);
 		setAntialiasing(true);
-		_screen = SDL_SetVideoMode(screenW, screenH, 0, sdlflags);
+		_screen = SDL_SetVideoMode(screenW, screenH, bpp, sdlflags);
 	}
 
 	// If 16-bit without alpha and with antialiasing didn't work, try without antialiasing
 	if (!_screen && _opengl && _antialiasing) {
 		warning("Couldn't create 16-bit visual with AA, trying 16-bit without AA");
 		setAntialiasing(false);
-		_screen = SDL_SetVideoMode(screenW, screenH, 0, sdlflags);
+		_screen = SDL_SetVideoMode(screenW, screenH, bpp, sdlflags);
 	}
+
 #endif
 
 	if (!_screen) {
@@ -768,9 +782,11 @@ void SurfaceSdlGraphicsManager::updateScreen() {
 			drawOverlayOpenGLShaders();
 #endif
 		}
-
+#if SDL_VERSION_ATLEAST(2,0,0)
+		SDL_GL_SwapWindow(_window->getSDLWindow());
+#else
 		SDL_GL_SwapBuffers();
-
+#endif // SDL_VERSION_ATLEAST(2,0,0)
 		if (_frameBuffer) {
 			_frameBuffer->attach();
 		}
@@ -787,7 +803,11 @@ void SurfaceSdlGraphicsManager::updateScreen() {
 			drawOverlay();
 		}
 		drawSideTextures();
+#if SDL_VERSION_ATLEAST(2, 0, 0)
+		SDL_RenderPresent(_renderer);
+#else
 		SDL_Flip(_screen);
+#endif
 	}
 }
 
@@ -1077,11 +1097,21 @@ bool SurfaceSdlGraphicsManager::showMouse(bool visible) {
 
 // ResidualVM specific method
 bool SurfaceSdlGraphicsManager::lockMouse(bool lock) {
+#if SDL_VERSION_ATLEAST(2,0,0)
+	if (lock)
+		SDL_SetRelativeMouseMode(SDL_TRUE);
+	else
+		SDL_SetRelativeMouseMode(SDL_FALSE);
+	return true;
+#else
 	if (lock)
 		SDL_WM_GrabInput(SDL_GRAB_ON);
 	else
 		SDL_WM_GrabInput(SDL_GRAB_OFF);
 	return true;
+#endif
+
+
 }
 
 void SurfaceSdlGraphicsManager::warpMouse(int x, int y) {
@@ -1104,8 +1134,11 @@ void SurfaceSdlGraphicsManager::warpMouse(int x, int y) {
 		x += _gameRect.getTopLeft().getX();
 		y += _gameRect.getTopLeft().getY();
 	}
-
+#if SDL_VERSION_ATLEAST(2,0,0)
+	SDL_WarpMouseInWindow(_window->getSDLWindow(), x, y);
+#else
 	SDL_WarpMouse(x, y);
+#endif
 }
 
 void SurfaceSdlGraphicsManager::setMouseCursor(const void *buf, uint w, uint h, int hotspot_x, int hotspot_y, uint32 keycolor, bool dontScale, const Graphics::PixelFormat *format) {
@@ -1211,6 +1244,95 @@ void SurfaceSdlGraphicsManager::deinitializeRenderer() {
 	_renderer = nullptr;
 
 	_window->destroyWindow();
+}
+
+void SurfaceSdlGraphicsManager::setWindowResolution(int width, int height) {
+	_windowWidth = width;
+	_windowHeight = height;
+
+	// We expect full screen resolution as inputs coming from the event system.
+	_eventSource->resetKeyboadEmulation(_windowWidth - 1, _windowHeight - 1);
+
+	// Calculate the "viewport" for the actual area we draw in. In fullscreen
+	// we can easily get a different resolution than what we requested. In
+	// this case, we add black bars if necessary to assure the aspect ratio
+	// is preserved.
+	//const frac_t outputAspect = intToFrac(_windowWidth) / _windowHeight;
+	//const frac_t desiredAspect = intToFrac(_videoMode.hardwareWidth) / _videoMode.hardwareHeight;
+
+	_viewport.w = _windowWidth;
+	_viewport.h = _windowHeight;
+
+	// Adjust one dimension for mantaining the aspect ratio.
+	/*if (abs(outputAspect - desiredAspect) >= (int)(FRAC_ONE / 1000)) {
+		if (outputAspect < desiredAspect) {
+			_viewport.h = _videoMode.hardwareHeight * _windowWidth / _videoMode.hardwareWidth;
+		}
+		else if (outputAspect > desiredAspect) {
+			_viewport.w = _videoMode.hardwareWidth * _windowHeight / _videoMode.hardwareHeight;
+		}
+	}*/
+
+	_viewport.x = (_windowWidth - _viewport.w) / 2;
+	_viewport.y = (_windowHeight - _viewport.h) / 2;
+
+	// Force a full redraw because we changed the viewport.
+	_forceFull = true;
+}
+
+SDL_Surface *SurfaceSdlGraphicsManager::SDL_SetVideoMode(int width, int height, int bpp, Uint32 flags) {
+	deinitializeRenderer();
+
+	uint32 createWindowFlags = 0;
+#ifdef USE_SDL_RESIZABLE_WINDOW
+	createWindowFlags |= SDL_WINDOW_RESIZABLE;
+#endif
+	if ((flags & SDL_FULLSCREEN) != 0) {
+		createWindowFlags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
+	}
+
+	if (!_window->createWindow(width, height, SDL_WINDOW_OPENGL)) {
+		return nullptr;
+	}
+	SDL_GL_CreateContext(_window->getSDLWindow());
+	SDL_GL_SwapWindow(_window->getSDLWindow());
+
+	_renderer = SDL_CreateRenderer(_window->getSDLWindow(), -1, 0);
+	if (!_renderer ) {
+		_renderer = SDL_CreateRenderer(_window->getSDLWindow(), -1, 0);
+		if (!_renderer)
+		{
+			deinitializeRenderer();
+			return nullptr;
+		}
+	}
+
+	SDL_GetWindowSize(_window->getSDLWindow(), &_windowWidth, &_windowHeight);
+	setWindowResolution(_windowWidth, _windowHeight);
+
+	_screenTexture = SDL_CreateTexture(_renderer, SDL_PIXELFORMAT_RGB565, SDL_TEXTUREACCESS_STREAMING, width, height);
+	if (!_screenTexture) {
+		deinitializeRenderer();
+		return nullptr;
+	}
+
+	SDL_Surface *screen = SDL_CreateRGBSurface(0, width, height, 16, 0xF800, 0x7E0, 0x1F, 0);
+	if (!screen) {
+		deinitializeRenderer();
+		return nullptr;
+	}
+	else {
+		debug("OPENGL VERSION %s", glGetString(GL_VERSION));
+		return screen;
+	}
+}
+
+void SurfaceSdlGraphicsManager::SDL_UpdateRects(SDL_Surface *screen, int numrects, SDL_Rect *rects) {
+	SDL_UpdateTexture(_screenTexture, nullptr, screen->pixels, screen->pitch);
+
+	SDL_RenderClear(_renderer);
+	SDL_RenderCopy(_renderer, _screenTexture, NULL, &_viewport);
+	SDL_RenderPresent(_renderer);
 }
 #endif // SDL_VERSION_ATLEAST(2, 0, 0)
 

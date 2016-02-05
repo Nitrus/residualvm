@@ -29,7 +29,7 @@
 
 namespace Stark {
 namespace Gfx {
-
+#ifdef USE_OPENGL_SHADERS
 OpenGLSSurfaceRenderer::OpenGLSSurfaceRenderer(OpenGLSDriver *gfx) :
 		SurfaceRenderer(),
 		_gfx(gfx) {
@@ -73,6 +73,6 @@ Math::Vector2d OpenGLSSurfaceRenderer::normalizeCurrentCoordinates(float x, floa
 	Common::Rect viewport = _gfx->getViewport();
 	return Math::Vector2d(x / (float)viewport.width(), y / (float)viewport.height());
 }
-
+#endif
 } // End of namespace Gfx
 } // End of namespace Stark

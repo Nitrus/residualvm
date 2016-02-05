@@ -945,7 +945,7 @@ const Feature s_features[] = {
 	{    "theora",   "USE_THEORADEC", "libtheora_static", false, "Theora decoding support" },
 	{  "freetype",   "USE_FREETYPE2", "freetype",         true, "FreeType support" },
 	{      "jpeg",        "USE_JPEG", "jpeg-static",      true, "libjpeg support" },
-	{"fluidsynth",  "USE_FLUIDSYNTH", "libfluidsynth",    true, "FluidSynth support" },
+	{"fluidsynth",  "USE_FLUIDSYNTH", "libfluidsynth",    false, "FluidSynth support" },
 
 	// Feature flags
 	{            "bink",             "USE_BINK",         "", true,  "Bink video support" },

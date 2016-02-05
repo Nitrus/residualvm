@@ -267,7 +267,7 @@ public:
 		return FROM_LE_32(val);
 	}
 
-#ifdef HAVE_INT64
+//#ifdef HAVE_INT64
 	/**
 	 * Read an unsigned 64-bit word stored in little endian (LSB first) order
 	 * from the stream and return it.
@@ -280,7 +280,7 @@ public:
 		read(&val, 8);
 		return FROM_LE_64(val);
 	}
-#endif
+//#endif
 
 	/**
 	 * Read an unsigned 16-bit word stored in big endian (MSB first) order

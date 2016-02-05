@@ -33,7 +33,7 @@
 
 namespace Stark {
 namespace Gfx {
-
+#ifdef USE_OPENGL_SHADERS
 OpenGLSActorRenderer::OpenGLSActorRenderer(OpenGLSDriver *gfx) :
 		VisualActor(),
 		_gfx(gfx) {
@@ -288,6 +288,6 @@ void OpenGLSActorRenderer::setLightArrayUniform(const char *uniform, const Light
 		_shader->setUniform(Common::String::format("lights[%d].position", i).c_str(), Math::Vector4d());
 	}
 }
-
+#endif
 } // End of namespace Gfx
 } // End of namespace Stark

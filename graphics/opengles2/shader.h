@@ -68,7 +68,7 @@ public:
 	}
 
 	void use(bool forceReload = false);
-
+#ifdef USE_OPENGL_SHADERS
 	void setUniform(const char *uniform, const Math::Matrix4 &m) {
 		GLint pos = getUniformLocation(uniform);
 		if (pos != -1)
@@ -123,7 +123,7 @@ public:
 			return kv->_value;
 		}
 	}
-
+#endif
 	void enableVertexAttribute(const char *attrib, GLuint vbo, GLint size, GLenum type, GLboolean normalized, GLsizei stride, uint32 offset);
 	void disableVertexAttribute(const char *attrib, int size, const float *data);
 	template <int r>

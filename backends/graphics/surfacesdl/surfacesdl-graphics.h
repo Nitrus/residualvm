@@ -139,11 +139,18 @@ public:
 	virtual void notifyMousePos(Common::Point mouse);
 
 protected:
-
 #if SDL_VERSION_ATLEAST(2, 0, 0)
+	/* SDL2 features a different API for 2D graphics. We create a wrapper
+	* around this API to keep the code paths as close as possible. */
 	SDL_Renderer *_renderer;
 	SDL_Texture *_screenTexture;
+	SDL_Rect _viewport;
+	int _windowWidth, _windowHeight;
 	void deinitializeRenderer();
+	void setWindowResolution(int width, int height);
+
+	SDL_Surface *SDL_SetVideoMode(int width, int height, int bpp, Uint32 flags);
+	void SDL_UpdateRects(SDL_Surface *screen, int numrects, SDL_Rect *rects);
 #endif
 
 	SDL_Surface *_screen;

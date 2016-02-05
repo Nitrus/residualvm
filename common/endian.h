@@ -409,7 +409,7 @@
 	#define CONSTANT_BE_32(a) SWAP_CONSTANT_32(a)
 	#define CONSTANT_BE_16(a) SWAP_CONSTANT_16(a)
 
-#ifdef HAVE_INT64
+//#ifdef HAVE_INT64
 	#define READ_LE_UINT64(a) READ_UINT64(a)
 	#define WRITE_LE_UINT64(a, v) WRITE_UINT64(a, v)
 	#define FROM_LE_64(a) ((uint64)(a))
@@ -418,7 +418,7 @@
 	#define TO_BE_64(a) SWAP_BYTES_64(a)
 	#define CONSTANT_LE_64(a) ((uint64)(a))
 	#define CONSTANT_BE_64(a) SWAP_CONSTANT_64(a)
-#endif
+//#endif
 
 // if the unaligned load and the byteswap take alot instructions its better to directly read and invert
 #	if defined(SCUMM_NEED_ALIGNMENT) && !defined(__mips__)
