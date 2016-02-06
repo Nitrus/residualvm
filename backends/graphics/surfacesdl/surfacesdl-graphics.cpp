@@ -276,10 +276,17 @@ Graphics::PixelBuffer SurfaceSdlGraphicsManager::setupScreen(uint screenW, uint 
 		setAntialiasing(true);
 
 #if SDL_VERSION_ATLEAST(2, 0, 0)
-		sdlflags = SDL_WINDOW_OPENGL;
-#else
-		sdlflags = SDL_OPENGL;
+#ifdef USE_OPENGL_SHADERS
+		//SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+		//SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+		SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+		SDL_SetHint(SDL_HINT_RENDER_OPENGL_SHADERS, "1");
 #endif
+#endif
+#ifndef SDL_OPENGL
+#define SDL_OPENGL 1
+#endif;
+		sdlflags = SDL_OPENGL;
 		bpp = 24;
 	} else
 #endif
@@ -384,6 +391,7 @@ Graphics::PixelBuffer SurfaceSdlGraphicsManager::setupScreen(uint screenW, uint 
 
 #ifdef USE_GLEW
 		debug("INFO: GLEW Version: %s", glewGetString(GLEW_VERSION));
+		glewExperimental = GL_TRUE;
 		GLenum err = glewInit();
 		if (err != GLEW_OK) {
 			warning("Error: %s", glewGetErrorString(err));
@@ -1290,19 +1298,23 @@ SDL_Surface *SurfaceSdlGraphicsManager::SDL_SetVideoMode(int width, int height, 
 	if ((flags & SDL_FULLSCREEN) != 0) {
 		createWindowFlags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
 	}
+	if
+	((flags & SDL_OPENGL) != 0) {
+		createWindowFlags |= SDL_WINDOW_OPENGL;
+	}
 
-	if (!_window->createWindow(width, height, SDL_WINDOW_OPENGL)) {
+	if (!_window->createWindow(width, height, createWindowFlags)) {
 		return nullptr;
 	}
+
 	SDL_GL_CreateContext(_window->getSDLWindow());
-	SDL_GL_SwapWindow(_window->getSDLWindow());
+	//SDL_GL_SwapWindow(_window->getSDLWindow());
 
 	_renderer = SDL_CreateRenderer(_window->getSDLWindow(), -1, 0);
 	if (!_renderer ) {
-		_renderer = SDL_CreateRenderer(_window->getSDLWindow(), -1, 0);
-		if (!_renderer)
-		{
-			deinitializeRenderer();
+		deinitializeRenderer();
+
+		if (!_window->createWindow(width, height, createWindowFlags)) {
 			return nullptr;
 		}
 	}
@@ -1322,9 +1334,36 @@ SDL_Surface *SurfaceSdlGraphicsManager::SDL_SetVideoMode(int width, int height, 
 		return nullptr;
 	}
 	else {
-		debug("OPENGL VERSION %s", glGetString(GL_VERSION));
+
+		int glflag;
+		const GLubyte *str;
+
+		str = glGetString(GL_VENDOR);
+		debug("INFO: OpenGL Vendor: %s", str);
+		str = glGetString(GL_RENDERER);
+		debug("INFO: OpenGL Renderer: %s", str);
+		str = glGetString(GL_VERSION);
+		debug("INFO: OpenGL Version: %s", str);
+		SDL_GL_GetAttribute(SDL_GL_RED_SIZE, &glflag);
+		debug("INFO: OpenGL Red bits: %d", glflag);
+		SDL_GL_GetAttribute(SDL_GL_GREEN_SIZE, &glflag);
+		debug("INFO: OpenGL Green bits: %d", glflag);
+		SDL_GL_GetAttribute(SDL_GL_BLUE_SIZE, &glflag);
+		debug("INFO: OpenGL Blue bits: %d", glflag);
+		SDL_GL_GetAttribute(SDL_GL_ALPHA_SIZE, &glflag);
+		debug("INFO: OpenGL Alpha bits: %d", glflag);
+		SDL_GL_GetAttribute(SDL_GL_DEPTH_SIZE, &glflag);
+		debug("INFO: OpenGL Z buffer depth bits: %d", glflag);
+		SDL_GL_GetAttribute(SDL_GL_DOUBLEBUFFER, &glflag);
+		debug("INFO: OpenGL Double Buffer: %d", glflag);
+		SDL_GL_GetAttribute(SDL_GL_STENCIL_SIZE, &glflag);
+		debug("INFO: OpenGL Stencil buffer bits: %d", glflag);
+
+
 		return screen;
 	}
+
+	SDL_UpdateRects(screen, 0, nullptr);
 }
 
 void SurfaceSdlGraphicsManager::SDL_UpdateRects(SDL_Surface *screen, int numrects, SDL_Rect *rects) {

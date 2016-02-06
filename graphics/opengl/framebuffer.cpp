@@ -26,7 +26,8 @@
 
 #ifdef USE_OPENGL_SHADERS
 #include "graphics/opengl/framebuffer.h"
-#elif defined(SDL_BACKEND)
+#endif
+#if defined(SDL_BACKEND)
 #define GL_GLEXT_PROTOTYPES // For the GL_EXT_framebuffer_object extension
 #include "graphics/opengl/framebuffer.h"
 #ifndef GL_ARB_framebuffer_object

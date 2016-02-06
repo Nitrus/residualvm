@@ -48,5 +48,4 @@
 #elif defined(USE_OPENGL)
 #include <GL/gl.h>
 #endif
-
 #endif
