@@ -240,7 +240,7 @@ void SurfaceSdlGraphicsManager::setupScreen(uint screenW, uint screenH, bool ful
 			// Spawn a 32x32 window off-screen
 
 #if SDL_VERSION_ATLEAST(2, 0, 0)
-			SDL_SetVideoMode(32, 32, 0, SDL_VIDEO_OPENGL);
+			SDL_SetVideoMode(32, 32, 0, SDL_WINDOW_OPENGL);
 #else
 			SDL_putenv(const_cast<char *>("SDL_VIDEO_WINDOW_POS=9000,9000"));
 			SDL_SetVideoMode(32, 32, 0, SDL_OPENGL);
