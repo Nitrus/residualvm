@@ -601,6 +601,15 @@ void SurfaceSdlGraphicsManager::drawOverlay() {
 	SDL_LockSurface(_overlayscreen);
 	Graphics::PixelBuffer srcBuf(_overlayFormat, (byte *)_overlayscreen->pixels);
 	Graphics::PixelBuffer dstBuf(_screenFormat, (byte *)_screen->pixels);
+#if SDL_VERSION_ATLEAST( 2, 0, 0)
+	SDL_Texture *_overlayscreenTexture = SDL_CreateTextureFromSurface(_renderer, _overlayscreen);
+	SDL_Texture *_screenTexture = SDL_CreateTextureFromSurface(_renderer, _screen);
+	SDL_UpdateTexture(_screenTexture, NULL, _overlayscreen->pixels, _overlayscreen->pitch);
+
+	SDL_RenderClear(_renderer);
+	SDL_RenderCopy(_renderer, _overlayscreenTexture, NULL, &_viewport);
+	SDL_RenderPresent(_renderer);
+#else
 	int h = _overlayHeight;
 
 	do {
@@ -609,6 +618,7 @@ void SurfaceSdlGraphicsManager::drawOverlay() {
 		srcBuf.shiftBy(_overlayWidth);
 		dstBuf.shiftBy(_overlayWidth);
 	} while (--h);
+#endif
 	SDL_UnlockSurface(_screen);
 	SDL_UnlockSurface(_overlayscreen);
 }
@@ -652,6 +662,7 @@ void SurfaceSdlGraphicsManager::updateScreen() {
 		dstrect.w = _gameRect.getWidth();
 		dstrect.h = _gameRect.getHeight();
 		SDL_BlitSurface(_subScreen, NULL, _screen, &dstrect);
+
 		if (_overlayVisible) {
 			drawOverlay();
 		}
@@ -1178,31 +1189,6 @@ SDL_Surface *SurfaceSdlGraphicsManager::SDL_SetVideoMode(int width, int height, 
 		return nullptr;
 	}
 	else {
-
-		int glflag;
-		const GLubyte *str;
-
-		str = glGetString(GL_VENDOR);
-		debug("INFO: OpenGL Vendor: %s", str);
-		str = glGetString(GL_RENDERER);
-		debug("INFO: OpenGL Renderer: %s", str);
-		str = glGetString(GL_VERSION);
-		debug("INFO: OpenGL Version: %s", str);
-		SDL_GL_GetAttribute(SDL_GL_RED_SIZE, &glflag);
-		debug("INFO: OpenGL Red bits: %d", glflag);
-		SDL_GL_GetAttribute(SDL_GL_GREEN_SIZE, &glflag);
-		debug("INFO: OpenGL Green bits: %d", glflag);
-		SDL_GL_GetAttribute(SDL_GL_BLUE_SIZE, &glflag);
-		debug("INFO: OpenGL Blue bits: %d", glflag);
-		SDL_GL_GetAttribute(SDL_GL_ALPHA_SIZE, &glflag);
-		debug("INFO: OpenGL Alpha bits: %d", glflag);
-		SDL_GL_GetAttribute(SDL_GL_DEPTH_SIZE, &glflag);
-		debug("INFO: OpenGL Z buffer depth bits: %d", glflag);
-		SDL_GL_GetAttribute(SDL_GL_DOUBLEBUFFER, &glflag);
-		debug("INFO: OpenGL Double Buffer: %d", glflag);
-		SDL_GL_GetAttribute(SDL_GL_STENCIL_SIZE, &glflag);
-		debug("INFO: OpenGL Stencil buffer bits: %d", glflag);
-
 		return screen;
 	}
 }
