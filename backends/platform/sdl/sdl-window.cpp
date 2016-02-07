@@ -208,7 +208,7 @@ bool SdlWindow::createWindow(int width, int height, uint32 flags) {
 
 	_window = SDL_CreateWindow(_windowCaption.c_str(), SDL_WINDOWPOS_UNDEFINED,
 	                           SDL_WINDOWPOS_UNDEFINED, width, height, flags);
-	if (!_window) {
+	if (!_window || _window == NULL) {
 		return false;
 	}
 	setupIcon();

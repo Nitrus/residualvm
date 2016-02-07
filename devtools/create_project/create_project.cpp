@@ -945,7 +945,7 @@ const Feature s_features[] = {
 	{    "theora",   "USE_THEORADEC", "libtheora_static", false, "Theora decoding support" },
 	{  "freetype",   "USE_FREETYPE2", "freetype",         true, "FreeType support" },
 	{      "jpeg",        "USE_JPEG", "jpeg-static",      true, "libjpeg support" },
-	{"fluidsynth",  "USE_FLUIDSYNTH", "libfluidsynth",    true, "FluidSynth support" },
+	{"fluidsynth",  "USE_FLUIDSYNTH", "libfluidsynth",    false, "FluidSynth support" },
 
 	// Feature flags
 	{            "bink",             "USE_BINK",         "", true,  "Bink video support" },
@@ -955,6 +955,8 @@ const Feature s_features[] = {
 	{         "mt32emu",          "USE_MT32EMU",         "", false, "integrated MT-32 emulator" },
 	{            "nasm",             "USE_NASM",         "", true,  "IA-32 assembly support" }, // This feature is special in the regard, that it needs additional handling.
 	{          "opengl",           "USE_OPENGL", "opengl32", true,  "OpenGL support" },
+	{  "opengl-shaders",   "USE_OPENGL_SHADERS",         "", true,  "OpenGL Shaders support" },
+	{            "glew",             "USE_GLEW",   "glew32", true,  "GLEW support" },
 	{         "taskbar",          "USE_TASKBAR",         "", true,  "Taskbar integration support" },
 	{     "translation",      "USE_TRANSLATION",         "", true,  "Translation support" },
 	{          "vkeybd",        "ENABLE_VKEYBD",         "", false, "Virtual keyboard support"},
