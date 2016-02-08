@@ -822,8 +822,6 @@ void SurfaceSdlGraphicsManager::clearOverlay() {
 		SDL_Texture *_overlayscreenTexture = SDL_CreateTextureFromSurface(_renderer, _overlayscreen);
 		SDL_Texture *_screenTexture = SDL_CreateTextureFromSurface(_renderer, _screen);
 		SDL_UpdateTexture(_screenTexture, NULL, _overlayscreen->pixels, _overlayscreen->pitch);
-
-		SDL_RenderClear(_renderer);
 		SDL_RenderCopy(_renderer, _overlayscreenTexture, NULL, &_viewport);
 #endif
 		SDL_UnlockSurface(_screen);
@@ -1186,15 +1184,19 @@ SDL_Surface *SurfaceSdlGraphicsManager::SDL_SetVideoMode(int width, int height, 
 		deinitializeRenderer();
 		return nullptr;
 	}
+	SDL_RenderPresent(_renderer);
 
 	SDL_GetWindowSize(_window->getSDLWindow(), &_windowWidth, &_windowHeight);
 	setWindowResolution(_windowWidth, _windowHeight);
 
-	SDL_Surface *screen = SDL_CreateRGBSurface(0, width, height, 16, 0xF800, 0x7E0, 0x1F, 0);
+	SDL_Surface *screen = SDL_CreateRGBSurface(0, width, height, bpp, 0, 0, 0, 0);
 	if (!screen) {
 		deinitializeRenderer();
 		return nullptr;
 	} else {
+		if (screen->format->Amask != 0)
+			SDL_SetSurfaceBlendMode(screen, SDL_BLENDMODE_BLEND);
+
 		_sdlTexture = SDL_CreateTexture(_renderer, screen->format->format, ( SDL_TEXTUREACCESS_TARGET | SDL_TEXTUREACCESS_STREAMING ), width, height);
 		return screen;
 	}
