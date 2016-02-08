@@ -240,7 +240,7 @@ void SurfaceSdlGraphicsManager::setupScreen(uint screenW, uint screenH, bool ful
 			// Spawn a 32x32 window off-screen
 
 #if SDL_VERSION_ATLEAST(2, 0, 0)
-			SDL_SetVideoMode(32, 32, 0, SDL_WINDOW_OPENGL);
+			SDL_SetVideoMode(32, 32, 0, SDL_WINDOW_OPENGL, 9000, 9000);
 #else
 			SDL_putenv(const_cast<char *>("SDL_VIDEO_WINDOW_POS=9000,9000"));
 			SDL_SetVideoMode(32, 32, 0, SDL_OPENGL);
@@ -437,16 +437,16 @@ void SurfaceSdlGraphicsManager::setupScreen(uint screenW, uint screenH, bool ful
 
 	/*_overlayFormat.bytesPerPixel = _overlayscreen->format->BytesPerPixel;
 
-// 	For some reason the values below aren't right, at least on my system
-_overlayFormat.rLoss = _overlayscreen->format->Rloss;
-_overlayFormat.gLoss = _overlayscreen->format->Gloss;
-_overlayFormat.bLoss = _overlayscreen->format->Bloss;
-_overlayFormat.aLoss = _overlayscreen->format->Aloss;
+	// 	For some reason the values below aren't right, at least on my system
+	_overlayFormat.rLoss = _overlayscreen->format->Rloss;
+	_overlayFormat.gLoss = _overlayscreen->format->Gloss;
+	_overlayFormat.bLoss = _overlayscreen->format->Bloss;
+	_overlayFormat.aLoss = _overlayscreen->format->Aloss;
 
-_overlayFormat.rShift = _overlayscreen->format->Rshift;
-_overlayFormat.gShift = _overlayscreen->format->Gshift;
-_overlayFormat.bShift = _overlayscreen->format->Bshift;
-_overlayFormat.aShift = _overlayscreen->format->Ashift;*/
+	_overlayFormat.rShift = _overlayscreen->format->Rshift;
+	_overlayFormat.gShift = _overlayscreen->format->Gshift;
+	_overlayFormat.bShift = _overlayscreen->format->Bshift;
+	_overlayFormat.aShift = _overlayscreen->format->Ashift;*/
 
 	_overlayFormat = Graphics::PixelFormat(2, 5, 6, 5, 0, 11, 5, 0, 0);
 
@@ -601,15 +601,7 @@ void SurfaceSdlGraphicsManager::drawOverlay() {
 	SDL_LockSurface(_overlayscreen);
 	Graphics::PixelBuffer srcBuf(_overlayFormat, (byte *)_overlayscreen->pixels);
 	Graphics::PixelBuffer dstBuf(_screenFormat, (byte *)_screen->pixels);
-#if SDL_VERSION_ATLEAST( 2, 0, 0)
-	SDL_Texture *_overlayscreenTexture = SDL_CreateTextureFromSurface(_renderer, _overlayscreen);
-	SDL_Texture *_screenTexture = SDL_CreateTextureFromSurface(_renderer, _screen);
-	SDL_UpdateTexture(_screenTexture, NULL, _overlayscreen->pixels, _overlayscreen->pitch);
 
-	SDL_RenderClear(_renderer);
-	SDL_RenderCopy(_renderer, _overlayscreenTexture, NULL, &_viewport);
-	SDL_RenderPresent(_renderer);
-#else
 	int h = _overlayHeight;
 
 	do {
@@ -618,6 +610,12 @@ void SurfaceSdlGraphicsManager::drawOverlay() {
 		srcBuf.shiftBy(_overlayWidth);
 		dstBuf.shiftBy(_overlayWidth);
 	} while (--h);
+
+#if SDL_VERSION_ATLEAST( 2, 0, 0 )
+	SDL_Texture *_overlayscreenTexture = SDL_CreateTextureFromSurface(_renderer, _overlayscreen);
+	SDL_Texture *_screenTexture = SDL_CreateTextureFromSurface(_renderer, _screen);
+	SDL_UpdateTexture(_screenTexture, NULL, _overlayscreen->pixels, _overlayscreen->pitch);
+	SDL_RenderCopy(_renderer, _overlayscreenTexture, NULL, NULL);
 #endif
 	SDL_UnlockSurface(_screen);
 	SDL_UnlockSurface(_overlayscreen);
@@ -663,12 +661,19 @@ void SurfaceSdlGraphicsManager::updateScreen() {
 		dstrect.h = _gameRect.getHeight();
 		SDL_BlitSurface(_subScreen, NULL, _screen, &dstrect);
 
+#if SDL_VERSION_ATLEAST( 2, 0, 0)
+		if (_sdlTexture)
+		{
+			SDL_UpdateTexture(_sdlTexture, NULL, _screen->pixels, _screen->pitch);
+			SDL_RenderCopy(_renderer, _sdlTexture, NULL, NULL);
+		}
+#endif
 		if (_overlayVisible) {
 			drawOverlay();
 		}
 		drawSideTextures();
 #if SDL_VERSION_ATLEAST(2, 0, 0)
-		SDL_UpdateWindowSurface(_window->getSDLWindow());
+		SDL_RenderPresent(_renderer);
 #else
 		SDL_Flip(_screen);
 #endif
@@ -812,6 +817,15 @@ void SurfaceSdlGraphicsManager::clearOverlay() {
 			srcBuf.shiftBy(_overlayWidth);
 			dstBuf.shiftBy(_overlayWidth);
 		} while (--h);
+
+#if SDL_VERSION_ATLEAST( 2, 0, 0)
+		SDL_Texture *_overlayscreenTexture = SDL_CreateTextureFromSurface(_renderer, _overlayscreen);
+		SDL_Texture *_screenTexture = SDL_CreateTextureFromSurface(_renderer, _screen);
+		SDL_UpdateTexture(_screenTexture, NULL, _overlayscreen->pixels, _overlayscreen->pitch);
+
+		SDL_RenderClear(_renderer);
+		SDL_RenderCopy(_renderer, _overlayscreenTexture, NULL, &_viewport);
+#endif
 		SDL_UnlockSurface(_screen);
 		SDL_UnlockSurface(_overlayscreen);
 	}
@@ -1148,7 +1162,7 @@ void SurfaceSdlGraphicsManager::setWindowResolution(int width, int height) {
 	_forceFull = true;
 }
 
-SDL_Surface *SurfaceSdlGraphicsManager::SDL_SetVideoMode(int width, int height, int bpp, Uint32 flags) {
+SDL_Surface *SurfaceSdlGraphicsManager::SDL_SetVideoMode(int width, int height, int bpp, Uint32 flags, int posx, int posy) {
 	deinitializeRenderer();
 
 	uint32 createWindowFlags = flags;
@@ -1159,16 +1173,15 @@ SDL_Surface *SurfaceSdlGraphicsManager::SDL_SetVideoMode(int width, int height, 
 		createWindowFlags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
 	}
 
-	if (!_window->createWindow(width, height, createWindowFlags)) {
+	if (!_window->createWindow(width, height, createWindowFlags, posx, posy)) {
 		return nullptr;
 	}
 
 	if ((flags & SDL_WINDOW_OPENGL) != 0) {
 		SDL_GL_CreateContext(_window->getSDLWindow());
-		SDL_GL_SwapWindow(_window->getSDLWindow());
 	}
 
-	_renderer = SDL_CreateRenderer(_window->getSDLWindow(), -1, 0);
+	_renderer = ((flags & SDL_SWSURFACE) != 0) ? SDL_CreateSoftwareRenderer(SDL_GetWindowSurface(_window->getSDLWindow())) : SDL_CreateRenderer(_window->getSDLWindow(), -1, 0);
 	if (!_renderer) {
 		deinitializeRenderer();
 		return nullptr;
@@ -1177,18 +1190,12 @@ SDL_Surface *SurfaceSdlGraphicsManager::SDL_SetVideoMode(int width, int height, 
 	SDL_GetWindowSize(_window->getSDLWindow(), &_windowWidth, &_windowHeight);
 	setWindowResolution(_windowWidth, _windowHeight);
 
-	_screenTexture = SDL_CreateTexture(_renderer, SDL_PIXELFORMAT_RGB565, SDL_TEXTUREACCESS_STREAMING, width, height);
-	if (!_screenTexture) {
-		deinitializeRenderer();
-		return nullptr;
-	}
-
 	SDL_Surface *screen = SDL_CreateRGBSurface(0, width, height, 16, 0xF800, 0x7E0, 0x1F, 0);
 	if (!screen) {
 		deinitializeRenderer();
 		return nullptr;
-	}
-	else {
+	} else {
+		_sdlTexture = SDL_CreateTexture(_renderer, screen->format->format, ( SDL_TEXTUREACCESS_TARGET | SDL_TEXTUREACCESS_STREAMING ), width, height);
 		return screen;
 	}
 }

@@ -147,7 +147,7 @@ protected:
 	void deinitializeRenderer();
 	void setWindowResolution(int width, int height);
 
-	SDL_Surface *SDL_SetVideoMode(int width, int height, int bpp, Uint32 flags);
+	SDL_Surface *SDL_SetVideoMode(int width, int height, int bpp, Uint32 flags, int posx = NULL, int posy = NULL);
 	void SDL_UpdateRects(SDL_Surface *screen, int numrects, SDL_Rect *rects);
 #endif
 
