@@ -1167,28 +1167,30 @@ SDL_Surface *SurfaceSdlGraphicsManager::SDL_SetVideoMode(int width, int height, 
 #ifdef USE_SDL_RESIZABLE_WINDOW
 	createWindowFlags |= SDL_WINDOW_RESIZABLE;
 #endif
+
+	bool glContext = false;
 	if ((flags & SDL_FULLSCREEN) != 0) {
-		createWindowFlags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
+		createWindowFlags |= SDL_WINDOW_FULLSCREEN;
+	}
+
+	if ((flags & SDL_WINDOW_OPENGL) != 0) {
+		glContext = true;
+		createWindowFlags |= SDL_WINDOW_OPENGL;
 	}
 
 	if (!_window->createWindow(width, height, createWindowFlags, posx, posy)) {
 		return nullptr;
 	}
-
-	if ((flags & SDL_WINDOW_OPENGL) != 0) {
+	if (glContext)
 		SDL_GL_CreateContext(_window->getSDLWindow());
-	}
 
-	_renderer = ((flags & SDL_SWSURFACE) != 0) ? SDL_CreateSoftwareRenderer(SDL_GetWindowSurface(_window->getSDLWindow())) : SDL_CreateRenderer(_window->getSDLWindow(), -1, 0);
+	_renderer = (glContext) ? SDL_CreateSoftwareRenderer(SDL_GetWindowSurface(_window->getSDLWindow())) : SDL_CreateRenderer(_window->getSDLWindow(), -1, 0);
 	if (!_renderer) {
 		deinitializeRenderer();
 		return nullptr;
 	}
-	SDL_RenderPresent(_renderer);
-
-	SDL_GetWindowSize(_window->getSDLWindow(), &_windowWidth, &_windowHeight);
-	setWindowResolution(_windowWidth, _windowHeight);
-
+	SDL_RenderClear(_renderer);
+	
 	SDL_Surface *screen = SDL_CreateRGBSurface(0, width, height, bpp, 0, 0, 0, 0);
 	if (!screen) {
 		deinitializeRenderer();
@@ -1198,6 +1200,9 @@ SDL_Surface *SurfaceSdlGraphicsManager::SDL_SetVideoMode(int width, int height, 
 			SDL_SetSurfaceBlendMode(screen, SDL_BLENDMODE_BLEND);
 
 		_sdlTexture = SDL_CreateTexture(_renderer, screen->format->format, ( SDL_TEXTUREACCESS_TARGET | SDL_TEXTUREACCESS_STREAMING ), width, height);
+		if (SDL_RenderTargetSupported(_renderer) == SDL_TRUE)
+			SDL_SetRenderTarget(_renderer, _sdlTexture);
+
 		return screen;
 	}
 }
