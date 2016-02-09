@@ -130,7 +130,7 @@ void Context::initialize(ContextType contextType) {
 }
 
 int Context::getGLSLVersion() const {
-	const char *glslVersionString = (const char *)glGetString(GL_SHADING_LANGUAGE_VERSION);
+	const char *glslVersionString = (const char*)glGetString(GL_SHADING_LANGUAGE_VERSION);
 
 	const char *glslVersionFormat;
 	if (type == kContextGL) {
@@ -140,10 +140,15 @@ int Context::getGLSLVersion() const {
 	}
 
 	int glslMajorVersion, glslMinorVersion;
-	if (sscanf(glslVersionString, glslVersionFormat, &glslMajorVersion, &glslMinorVersion) != 2) {
-		warning("Could not parse GLSL version '%s'", glslVersionString);
-		return 0;
+	if (glslVersionString != NULL)
+	{
+		if (sscanf(glslVersionString, glslVersionFormat, &glslMajorVersion, &glslMinorVersion) != 2) {
+			warning("Could not parse GLSL version '%s'", glslVersionString);
+			return 0;
+		}
 	}
+	else
+		return 0;
 
 	return glslMajorVersion * 100 + glslMinorVersion;
 }
