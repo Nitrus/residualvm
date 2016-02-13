@@ -146,6 +146,7 @@ protected:
 	int _windowWidth, _windowHeight;
 	void deinitializeRenderer();
 	void setWindowResolution(int width, int height);
+	SDL_GLContext _glContext;
 
 	SDL_Surface *SDL_SetVideoMode(int width, int height, int bpp, Uint32 flags, int posx = NULL, int posy = NULL);
 	void SDL_UpdateRects(SDL_Surface *screen, int numrects, SDL_Rect *rects);
@@ -153,7 +154,7 @@ protected:
 
 	SDL_Surface *_screen;
 	SDL_Surface *_subScreen;
-	SDL_Texture *_sdlTexture;
+
 
 #ifdef USE_RGB_COLOR
 	Graphics::PixelFormat _screenFormat;

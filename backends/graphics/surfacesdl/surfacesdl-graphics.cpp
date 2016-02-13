@@ -49,6 +49,10 @@
 #include "graphics/opengl/context.h"
 #endif
 
+#ifndef SDL_OPENGL
+#define SDL_OPENGL 0x00000002
+#endif
+
 static const OSystem::GraphicsMode s_supportedGraphicsModes[] = {
 		{ 0, 0, 0 }
 };
@@ -57,7 +61,7 @@ SurfaceSdlGraphicsManager::SurfaceSdlGraphicsManager(SdlEventSource *sdlEventSou
 	:
 	SdlGraphicsManager(sdlEventSource, window),
 #if SDL_VERSION_ATLEAST(2, 0, 0)
-	_renderer(nullptr), _screenTexture(nullptr),
+	_renderer(nullptr), _screenTexture(nullptr), _glContext(0),
 #endif
 	_screen(0),
 	_subScreen(0),
@@ -195,7 +199,7 @@ void SurfaceSdlGraphicsManager::launcherInitSize(uint w, uint h) {
 void SurfaceSdlGraphicsManager::setupScreen(uint screenW, uint screenH, bool fullscreen, bool accel3d) {
 	uint32 sdlflags;
 	int bpp;
-
+	SDL_ClearError();
 	closeOverlay();
 
 #ifdef USE_OPENGL
@@ -240,13 +244,19 @@ void SurfaceSdlGraphicsManager::setupScreen(uint screenW, uint screenH, bool ful
 			// Spawn a 32x32 window off-screen
 
 #if SDL_VERSION_ATLEAST(2, 0, 0)
-			SDL_SetVideoMode(32, 32, 0, SDL_WINDOW_OPENGL, 9000, 9000);
+#ifdef USE_GLES2
+			SDL_setenv(const_cast<char *>("SDL_VIDEODRIVER"), const_cast<char *>("opengles2"), 1);
+#endif
+			SDL_setenv(const_cast<char *>("SDL_VIDEO_WINDOW_POS"), const_cast<char *>("9000,9000"), 1);
+			SDL_SetVideoMode(32, 32, 0, SDL_OPENGL, 9000, 9000);
+			SDL_setenv(const_cast<char *>("SDL_VIDEO_WINDOW_POS"), const_cast<char *>("centered"), 1);
 #else
 			SDL_putenv(const_cast<char *>("SDL_VIDEO_WINDOW_POS=9000,9000"));
 			SDL_SetVideoMode(32, 32, 0, SDL_OPENGL);
 			SDL_putenv(const_cast<char *>("SDL_VIDEO_WINDOW_POS=centered"));
 #endif
 			initializeOpenGLContext();
+
 			framebufferSupported = OpenGLContext.framebufferObjectSupported;
 			if (_fullscreen && framebufferSupported) {
 				screenW = _desktopW;
@@ -279,11 +289,7 @@ void SurfaceSdlGraphicsManager::setupScreen(uint screenW, uint screenH, bool ful
 		SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
 		setAntialiasing(true);
 
-#if SDL_VERSION_ATLEAST(2, 0, 0)
-		sdlflags = SDL_WINDOW_OPENGL;
-#else
 		sdlflags = SDL_OPENGL;
-#endif
 		bpp = 24;
 	}
 	else
@@ -304,8 +310,8 @@ void SurfaceSdlGraphicsManager::setupScreen(uint screenW, uint screenH, bool ful
 
 	if (_fullscreen)
 		sdlflags |= SDL_FULLSCREEN;
-
 	_screen = SDL_SetVideoMode(screenW, screenH, bpp, sdlflags);
+
 #ifdef USE_OPENGL
 	// If 32-bit with antialiasing failed, try 32-bit without antialiasing
 	if (!_screen && _opengl && _antialiasing) {
@@ -358,6 +364,9 @@ void SurfaceSdlGraphicsManager::setupScreen(uint screenW, uint screenH, bool ful
 
 #ifdef USE_OPENGL
 	if (_opengl) {
+#if SDL_VERSION_ATLEAST(2, 0, 0)
+		_glContext = SDL_GL_CreateContext(_window->getSDLWindow());
+#endif
 		int glflag;
 		const GLubyte *str;
 
@@ -422,18 +431,20 @@ void SurfaceSdlGraphicsManager::setupScreen(uint screenW, uint screenH, bool ful
 #endif
 		_overlayscreen = SDL_CreateRGBSurface(SDL_SWSURFACE, _overlayWidth, _overlayHeight, 16,
 			rmask, gmask, bmask, amask);
-	}
+}
 	else
 #endif
 	{
-		_overlayscreen = SDL_CreateRGBSurface(SDL_SWSURFACE, _overlayWidth, _overlayHeight, 16,
+		SDL_CreateRGBSurface(SDL_SWSURFACE, _overlayWidth, _overlayHeight, 16,
 			_screen->format->Rmask, _screen->format->Gmask, _screen->format->Bmask, _screen->format->Amask);
-	}
 
+		//SDL_CreateRGBSurface(SDL_SWSURFACE, _overlayWidth, _overlayHeight, 16, 0, 0, 0, 0);
+	}
+	/*
 	if (!_overlayscreen) {
 		warning("Error: %s", SDL_GetError());
 		g_system->quit();
-	}
+	}*/
 
 	/*_overlayFormat.bytesPerPixel = _overlayscreen->format->BytesPerPixel;
 
@@ -610,13 +621,6 @@ void SurfaceSdlGraphicsManager::drawOverlay() {
 		srcBuf.shiftBy(_overlayWidth);
 		dstBuf.shiftBy(_overlayWidth);
 	} while (--h);
-
-#if SDL_VERSION_ATLEAST( 2, 0, 0 )
-	SDL_Texture *_overlayscreenTexture = SDL_CreateTextureFromSurface(_renderer, _overlayscreen);
-	SDL_Texture *_screenTexture = SDL_CreateTextureFromSurface(_renderer, _screen);
-	SDL_UpdateTexture(_screenTexture, NULL, _overlayscreen->pixels, _overlayscreen->pitch);
-	SDL_RenderCopy(_renderer, _overlayscreenTexture, NULL, NULL);
-#endif
 	SDL_UnlockSurface(_screen);
 	SDL_UnlockSurface(_overlayscreen);
 }
@@ -660,20 +664,13 @@ void SurfaceSdlGraphicsManager::updateScreen() {
 		dstrect.w = _gameRect.getWidth();
 		dstrect.h = _gameRect.getHeight();
 		SDL_BlitSurface(_subScreen, NULL, _screen, &dstrect);
-
-#if SDL_VERSION_ATLEAST( 2, 0, 0)
-		if (_sdlTexture)
-		{
-			SDL_UpdateTexture(_sdlTexture, NULL, _screen->pixels, _screen->pitch);
-			SDL_RenderCopy(_renderer, _sdlTexture, NULL, NULL);
-		}
-#endif
+		SDL_FreeSurface(_subScreen);
 		if (_overlayVisible) {
 			drawOverlay();
 		}
 		drawSideTextures();
 #if SDL_VERSION_ATLEAST(2, 0, 0)
-		SDL_RenderPresent(_renderer);
+		SDL_UpdateWindowSurface(_window->getSDLWindow());
 #else
 		SDL_Flip(_screen);
 #endif
@@ -769,65 +766,62 @@ void SurfaceSdlGraphicsManager::hideOverlay() {
 }
 
 void SurfaceSdlGraphicsManager::clearOverlay() {
-	if (!_overlayscreen)
-		return;
+	if (_window->getSDLWindow() != NULL)
+	{
+		if (!_overlayscreen)
+			return;
 
-	if (!_overlayVisible)
-		return;
+		if (!_overlayVisible)
+			return;
 
 #ifdef USE_OPENGL
-	if (_opengl) {
-		SDL_Surface *tmp = SDL_CreateRGBSurface(SDL_SWSURFACE, _overlayWidth, _overlayHeight,
-			_overlayscreen->format->BytesPerPixel * 8,
-			_overlayscreen->format->Rmask, _overlayscreen->format->Gmask,
-			_overlayscreen->format->Bmask, _overlayscreen->format->Amask);
+		if (_opengl) {
+			SDL_Surface *tmp = SDL_CreateRGBSurface(SDL_SWSURFACE, _overlayWidth, _overlayHeight,
+				_overlayscreen->format->BytesPerPixel * 8,
+				_overlayscreen->format->Rmask, _overlayscreen->format->Gmask,
+				_overlayscreen->format->Bmask, _overlayscreen->format->Amask);
 
-		SDL_LockSurface(tmp);
-		SDL_LockSurface(_overlayscreen);
+			SDL_LockSurface(tmp);
+			SDL_LockSurface(_overlayscreen);
 
-		glReadPixels(0, 0, _overlayWidth, _overlayHeight, GL_RGB, GL_UNSIGNED_SHORT_5_6_5, tmp->pixels);
+			glReadPixels(0, 0, _overlayWidth, _overlayHeight, GL_RGB, GL_UNSIGNED_SHORT_5_6_5, tmp->pixels);
 
-		// Flip pixels vertically
-		byte *src = (byte *)tmp->pixels;
-		byte *buf = (byte *)_overlayscreen->pixels + (_overlayHeight - 1) * _overlayscreen->pitch;
-		int h = _overlayHeight;
-		do {
-			memcpy(buf, src, _overlayWidth * _overlayscreen->format->BytesPerPixel);
-			src += tmp->pitch;
-			buf -= _overlayscreen->pitch;
-		} while (--h);
+			// Flip pixels vertically
+			byte *src = (byte *)tmp->pixels;
+			byte *buf = (byte *)_overlayscreen->pixels + (_overlayHeight - 1) * _overlayscreen->pitch;
+			int h = _overlayHeight;
+			do {
+				memcpy(buf, src, _overlayWidth * _overlayscreen->format->BytesPerPixel);
+				src += tmp->pitch;
+				buf -= _overlayscreen->pitch;
+			} while (--h);
 
-		SDL_UnlockSurface(_overlayscreen);
-		SDL_UnlockSurface(tmp);
+			SDL_UnlockSurface(_overlayscreen);
+			SDL_UnlockSurface(tmp);
 
-		SDL_FreeSurface(tmp);
-	}
-	else
+			SDL_FreeSurface(tmp);
+		}
+		else
 #endif
-	{
-		SDL_LockSurface(_screen);
-		SDL_LockSurface(_overlayscreen);
-		Graphics::PixelBuffer srcBuf(_screenFormat, (byte *)_screen->pixels);
-		Graphics::PixelBuffer dstBuf(_overlayFormat, (byte *)_overlayscreen->pixels);
-		int h = _overlayHeight;
+		{
+			SDL_LockSurface(_screen);
+			SDL_LockSurface(_overlayscreen);
+			Graphics::PixelBuffer srcBuf(_screenFormat, (byte *)_screen->pixels);
+			Graphics::PixelBuffer dstBuf(_overlayFormat, (byte *)_overlayscreen->pixels);
+			int h = _overlayHeight;
 
-		do {
-			dstBuf.copyBuffer(0, _overlayWidth, srcBuf);
+			do {
+				dstBuf.copyBuffer(0, _overlayWidth, srcBuf);
 
-			srcBuf.shiftBy(_overlayWidth);
-			dstBuf.shiftBy(_overlayWidth);
-		} while (--h);
+				srcBuf.shiftBy(_overlayWidth);
+				dstBuf.shiftBy(_overlayWidth);
+			} while (--h);
 
-#if SDL_VERSION_ATLEAST( 2, 0, 0)
-		SDL_Texture *_overlayscreenTexture = SDL_CreateTextureFromSurface(_renderer, _overlayscreen);
-		SDL_Texture *_screenTexture = SDL_CreateTextureFromSurface(_renderer, _screen);
-		SDL_UpdateTexture(_screenTexture, NULL, _overlayscreen->pixels, _overlayscreen->pitch);
-		SDL_RenderCopy(_renderer, _overlayscreenTexture, NULL, &_viewport);
-#endif
-		SDL_UnlockSurface(_screen);
-		SDL_UnlockSurface(_overlayscreen);
+			SDL_UnlockSurface(_screen);
+			SDL_UnlockSurface(_overlayscreen);
+		}
+		_overlayDirty = true;
 	}
-	_overlayDirty = true;
 }
 
 void SurfaceSdlGraphicsManager::setSideTextures(Graphics::Surface *left, Graphics::Surface *right) {
@@ -925,39 +919,44 @@ void SurfaceSdlGraphicsManager::copyRectToOverlay(const void *buf, int pitch, in
 }
 
 void SurfaceSdlGraphicsManager::closeOverlay() {
-	SDL_FreeSurface(_sideSurfaces[0]);
-	SDL_FreeSurface(_sideSurfaces[1]);
-	_sideSurfaces[0] = _sideSurfaces[1] = nullptr;
+	if (_window->getSDLWindow() != NULL)
+	{
+		SDL_DestroyWindow(_window->getSDLWindow());
+
+		SDL_FreeSurface(_sideSurfaces[0]);
+		SDL_FreeSurface(_sideSurfaces[1]);
+		_sideSurfaces[0] = _sideSurfaces[1] = nullptr;
 #ifdef USE_OPENGL
-	delete _sideTextures[0];
-	delete _sideTextures[1];
-	_sideTextures[0] = _sideTextures[1] = nullptr;
+		delete _sideTextures[0];
+		delete _sideTextures[1];
+		_sideTextures[0] = _sideTextures[1] = nullptr;
 #endif
-	if (_overlayscreen) {
-		SDL_FreeSurface(_overlayscreen);
-		_overlayscreen = NULL;
+		if (_overlayscreen) {
+			SDL_FreeSurface(_overlayscreen);
+			_overlayscreen = NULL;
 #ifdef USE_OPENGL
-		delete _surfaceRenderer;
-		_surfaceRenderer = nullptr;
+			delete _surfaceRenderer;
+			_surfaceRenderer = nullptr;
 
-		if (_opengl) {
-			for (uint i = 0; i < _overlayTextures.size(); i++) {
-				delete _overlayTextures[i];
+			if (_opengl) {
+				for (uint i = 0; i < _overlayTextures.size(); i++) {
+					delete _overlayTextures[i];
+				}
+				_overlayTextures.clear();
+
+				if (_frameBuffer) {
+					delete _frameBuffer;
+					_frameBuffer = nullptr;
+				}
 			}
-			_overlayTextures.clear();
-
-			if (_frameBuffer) {
-				delete _frameBuffer;
-				_frameBuffer = nullptr;
+			else if (_subScreen) {
+				SDL_FreeSurface(_subScreen);
+				_subScreen = nullptr;
 			}
-		}
-		else if (_subScreen) {
-			SDL_FreeSurface(_subScreen);
-			_subScreen = nullptr;
-		}
 
-		OpenGL::Context::destroy();
+			OpenGL::Context::destroy();
 #endif
+		}
 	}
 }
 
@@ -974,9 +973,9 @@ bool SurfaceSdlGraphicsManager::showMouse(bool visible) {
 bool SurfaceSdlGraphicsManager::lockMouse(bool lock) {
 #if SDL_VERSION_ATLEAST(2,0,0)
 	if (lock)
-		SDL_SetRelativeMouseMode(SDL_TRUE);
+		SDL_SetWindowGrab(_window->getSDLWindow(), SDL_TRUE);
 	else
-		SDL_SetRelativeMouseMode(SDL_FALSE);
+		SDL_SetWindowGrab(_window->getSDLWindow(), SDL_FALSE);
 	return true;
 #else
 	if (lock)
@@ -1010,7 +1009,7 @@ void SurfaceSdlGraphicsManager::warpMouse(int x, int y) {
 		}
 
 #if SDL_VERSION_ATLEAST(2,0,0)
-	SDL_WarpMouseInWindow(_window->getSDLWindow(), x, y);
+	_window->warpMouseInWindow(x, y);
 #else
 	SDL_WarpMouse(x, y);
 #endif
@@ -1161,48 +1160,28 @@ void SurfaceSdlGraphicsManager::setWindowResolution(int width, int height) {
 }
 
 SDL_Surface *SurfaceSdlGraphicsManager::SDL_SetVideoMode(int width, int height, int bpp, Uint32 flags, int posx, int posy) {
-	deinitializeRenderer();
 
-	uint32 createWindowFlags = flags;
-#ifdef USE_SDL_RESIZABLE_WINDOW
-	createWindowFlags |= SDL_WINDOW_RESIZABLE;
-#endif
+	uint32 createWindowFlags = 0;
 
-	bool glContext = false;
-	if ((flags & SDL_FULLSCREEN) != 0) {
+	if ((flags & SDL_FULLSCREEN) != 0)
 		createWindowFlags |= SDL_WINDOW_FULLSCREEN;
-	}
 
-	if ((flags & SDL_WINDOW_OPENGL) != 0) {
-		glContext = true;
+	if ((flags & SDL_OPENGL) != 0)
 		createWindowFlags |= SDL_WINDOW_OPENGL;
-	}
 
 	if (!_window->createWindow(width, height, createWindowFlags, posx, posy)) {
+		_window->destroyWindow();
 		return nullptr;
 	}
-	if (glContext)
-		SDL_GL_CreateContext(_window->getSDLWindow());
 
-	_renderer = (glContext) ? SDL_CreateSoftwareRenderer(SDL_GetWindowSurface(_window->getSDLWindow())) : SDL_CreateRenderer(_window->getSDLWindow(), -1, 0);
-	if (!_renderer) {
-		deinitializeRenderer();
+	SDL_Surface *screen = SDL_GetWindowSurface(_window->getSDLWindow());
+	screen = SDL_CreateRGBSurface(0, width, height, bpp, 0, 0, 0, 0);
+
+	if (!screen || screen == NULL) {
+		_window->destroyWindow();
 		return nullptr;
 	}
-	SDL_RenderClear(_renderer);
-	
-	SDL_Surface *screen = SDL_CreateRGBSurface(0, width, height, bpp, 0, 0, 0, 0);
-	if (!screen) {
-		deinitializeRenderer();
-		return nullptr;
-	} else {
-		if (screen->format->Amask != 0)
-			SDL_SetSurfaceBlendMode(screen, SDL_BLENDMODE_BLEND);
-
-		_sdlTexture = SDL_CreateTexture(_renderer, screen->format->format, ( SDL_TEXTUREACCESS_TARGET | SDL_TEXTUREACCESS_STREAMING ), width, height);
-		if (SDL_RenderTargetSupported(_renderer) == SDL_TRUE)
-			SDL_SetRenderTarget(_renderer, _sdlTexture);
-
+	else {
 		return screen;
 	}
 }

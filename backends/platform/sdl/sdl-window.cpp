@@ -200,15 +200,16 @@ SDL_Surface *copySDLSurface(SDL_Surface *src) {
 }
 
 bool SdlWindow::createWindow(int width, int height, uint32 flags, int posx, int posy) {
-	destroyWindow();
+	if ( _window )
+		destroyWindow();
 
 	if (_inputGrabState) {
 		flags |= SDL_WINDOW_INPUT_GRABBED;
 	}
-
 	_window = SDL_CreateWindow(_windowCaption.c_str(), ( ( posx != NULL ) ? posx : SDL_WINDOWPOS_UNDEFINED ),
 							((posy != NULL) ? posy : SDL_WINDOWPOS_UNDEFINED), width, height, flags);
 	if (!_window || _window == NULL) {
+		_window = nullptr;
 		return false;
 	}
 	setupIcon();
